@@ -8,8 +8,7 @@ import time
 VIRUS_TOTAL_URL_REPORT = 'https://www.virustotal.com/vtapi/v2/url/report'
 VIRUS_TOTAL_URL_SCAN = 'https://www.virustotal.com/vtapi/v2/url/scan'
 API_KEY = '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708'
-PARAMS = {'apikey': '',
-          'resource': ''}
+
 
 DATABASE = []
 
@@ -64,7 +63,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
                     unrated_counter = 0
 
-                    PARAMS['resource'] = url_key
+
                     requests.get(VIRUS_TOTAL_URL_SCAN, params= {'apikey': '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708', 'url':url_key})
                     time.sleep(2.4)
                     r = requests.get(VIRUS_TOTAL_URL_REPORT, params= {'apikey': '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708', 'resource':url_key}).json()
@@ -131,15 +130,21 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
                 unrated_counter = 0
 
-                PARAMS['resource'] = url_key
-                requests.get(VIRUS_TOTAL_URL_SCAN,
-                             params={'apikey': '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708',
-                                     'url': url_key})
+                try:
 
-                time.sleep(2.3)
-                r = requests.get(VIRUS_TOTAL_URL_REPORT, params={
-                    'apikey': '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708',
-                    'resource': url_key}).json()
+                    requests.get(VIRUS_TOTAL_URL_SCAN,
+                                 params={'apikey': '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708',
+                                         'url': url_key})
+
+                    time.sleep(2.3)
+                    r = requests.get(VIRUS_TOTAL_URL_REPORT, params={
+                        'apikey': '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708',
+                        'resource': url_key}).json()
+                except Exception as e:
+
+                    print(e)
+
+                    pass
 
                 i['date_updated'] = now
 
