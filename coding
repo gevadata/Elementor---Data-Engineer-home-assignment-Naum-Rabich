@@ -1,0 +1,173 @@
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from io import BytesIO
+import requests
+import csv
+import datetime
+import time
+
+VIRUS_TOTAL_URL_REPORT = 'https://www.virustotal.com/vtapi/v2/url/report'
+VIRUS_TOTAL_URL_SCAN = 'https://www.virustotal.com/vtapi/v2/url/scan'
+API_KEY = '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708'
+PARAMS = {'apikey': '',
+          'resource': ''}
+
+DATABASE = []
+
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+
+    # get the urls list to local path project
+
+    r = requests.get('https://elementor-pub.s3.eu-central-1.amazonaws.com/Data-Enginner/Challenge1/request1.csv')
+
+
+    with open('request1.csv', 'r') as read_obj:
+        # pass the file object to reader() to get the reader object
+        csv_reader = csv.reader(read_obj)
+        # Iterate over each row in the csv using reader object
+        for row in csv_reader:
+            # row variable is a list that represents a row in csv
+            DATABASE.append({'url_key':row[0].strip(), 'date_updated':'1900-01-01 00:00:00','clean': 0, 'unrated': 0})
+
+
+    #def get_data(self, url_key):
+
+
+    # refresh specific url if needed
+
+    def do_POST(self):
+
+        content_length = int(self.headers['Content-Length'])
+        url_key = self.rfile.read(content_length).decode("utf-8").replace('url_key=','')
+        self.send_response(200)
+        self.end_headers()
+        response = BytesIO()
+        response.write(b'This is POST request. ')
+        response.write(b'Received: ')
+        response.write((url_key + '\n').encode())
+
+        for i in DATABASE:
+
+            if i['url_key'] == url_key:
+
+                now  = datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+
+                now_date = datetime.datetime.strptime(now, '%Y-%m-%d %H:%M:%S')
+                date_updated = datetime.datetime.strptime(i['date_updated'],'%Y-%m-%d %H:%M:%S')
+
+                time_delta = (now_date - date_updated)
+                total_seconds = time_delta.total_seconds()
+                minutes = total_seconds / 60.0
+
+                if minutes > 30 :
+
+                    clean_counter = 0
+
+                    unrated_counter = 0
+
+                    PARAMS['resource'] = url_key
+                    requests.get(VIRUS_TOTAL_URL_SCAN, params= {'apikey': '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708', 'url':url_key})
+                    time.sleep(2.4)
+                    r = requests.get(VIRUS_TOTAL_URL_REPORT, params= {'apikey': '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708', 'resource':url_key}).json()
+
+                    i['date_updated'] = now
+
+                    #One(1) malicious or one phishing or one malware: the site will be categorized as “risk” else “safe”
+
+                    if int(r['positives']) > 1:
+                        i['risk_or_safe'] = 'risk'
+                    else:
+                        i['risk_or_safe'] = 'safe'
+
+
+                    for j in r['scans'].values():
+                        if j["result"] == 'clean site':
+                            clean_counter += 1
+                        if j["result"] == 'unrated site':
+                            unrated_counter += 1
+
+                    i["clean"] = clean_counter
+                    i["unrated"] = unrated_counter
+
+
+
+                else:
+
+                    response.write(b'Still refreshed \n')
+
+
+        response.write(('The update database is: ' + '\n').encode())
+
+
+        for i in DATABASE:
+            response.write((str(i) + '\n').encode())
+
+
+        self.wfile.write(response.getvalue())
+
+
+    # refresh all data base if needed
+
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        response = BytesIO()
+
+        for i in DATABASE:
+
+            url_key = i['url_key']
+
+            now = datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S')
+
+            now_date = datetime.datetime.strptime(now, '%Y-%m-%d %H:%M:%S')
+            date_updated = datetime.datetime.strptime(i['date_updated'], '%Y-%m-%d %H:%M:%S')
+
+            time_delta = (now_date - date_updated)
+            total_seconds = time_delta.total_seconds()
+            minutes = total_seconds / 60.0
+
+            if minutes > 30:
+
+                clean_counter = 0
+
+                unrated_counter = 0
+
+                PARAMS['resource'] = url_key
+                requests.get(VIRUS_TOTAL_URL_SCAN,
+                             params={'apikey': '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708',
+                                     'url': url_key})
+
+                time.sleep(2.3)
+                r = requests.get(VIRUS_TOTAL_URL_REPORT, params={
+                    'apikey': '1e392d4edea1e17c33758385df84f01cfd5e268aa3efda5be7bbcc914372f708',
+                    'resource': url_key}).json()
+
+                i['date_updated'] = now
+
+                # One(1) malicious or one phishing or one malware: the site will be categorized as “risk” else “safe”
+
+                if int(r['positives']) > 1:
+                    i['risk_or_safe'] = 'risk'
+                else:
+                    i['risk_or_safe'] = 'safe'
+
+                for j in r['scans'].values():
+                    if j["result"] == 'clean site':
+                        clean_counter += 1
+                    if j["result"] == 'unrated site':
+                        unrated_counter += 1
+
+                i["clean"] = clean_counter
+                i["unrated"] = unrated_counter
+
+
+
+        response.write(('The update database is: ' + '\n').encode())
+
+        for i in DATABASE:
+            response.write((str(i) + '\n').encode())
+
+        self.wfile.write(response.getvalue())
+
+
+httpd = HTTPServer(('localhost', 8000), SimpleHTTPRequestHandler)
+httpd.serve_forever()
