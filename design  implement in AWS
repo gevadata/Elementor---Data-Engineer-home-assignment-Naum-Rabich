@@ -1,0 +1,9 @@
+I created a web server that handle get and post request 
+
+get fot refresh all the database 
+
+post to refresh specific site 
+
+I would implemented it with getway api service in AWS 
+and also with S3 storage to save to database (work with that stoarge using API is easy)
+
